@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, de::Visitor};
+use serde::{de::Visitor, Deserialize};
 
 use crate::utility::Translation;
 
@@ -27,7 +27,7 @@ impl<'de> Visitor<'de> for TranslationVisitor {
     where
         E: serde::de::Error,
     {
-        Ok(Translation::Value(v.to_owned()))
+        Ok(Translation::Value(v.to_owned(), false))
     }
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>

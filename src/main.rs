@@ -6,9 +6,19 @@ use clap::Parser;
 #[command(version, about)]
 enum Options {
     #[command(alias = "v")]
-    Verify { base: PathBuf, source: PathBuf },
+    Verify {
+        base: PathBuf,
+        source: PathBuf,
+        #[arg(long, short, default_value_t = false)]
+        recursive: bool,
+    },
     #[command(alias = "vt")]
-    VerifyTemplates { base: PathBuf, source: PathBuf },
+    VerifyTemplates {
+        base: PathBuf,
+        source: PathBuf,
+        #[arg(long, short, default_value_t = false)]
+        recursive: bool,
+    },
     #[command(alias = "d")]
     Diff {
         base: PathBuf,
@@ -28,10 +38,16 @@ fn main() {
             fix,
             output,
         } => diff::diff(base, source, fix, output),
-        Options::Verify { base, source } => verify::verify(base, source),
-        Options::VerifyTemplates { base, source } => {
-            verify_templates::verify_templates(base, source)
-        }
+        Options::Verify {
+            base,
+            source,
+            recursive,
+        } => verify::verify(base, source, recursive),
+        Options::VerifyTemplates {
+            base,
+            source,
+            recursive,
+        } => verify_templates::verify_templates(base, source, recursive),
     }
 }
 mod diff;

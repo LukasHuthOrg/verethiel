@@ -1,11 +1,11 @@
-use std::collections::{HashMap, VecDeque, vec_deque};
+use std::collections::{vec_deque, HashMap, VecDeque};
 
 use serde::Serialize;
 
-#[derive(Serialize, PartialEq, Debug)]
+#[derive(Serialize, PartialEq, Debug, Clone)]
 #[serde(untagged)]
 pub(crate) enum Translation {
-    Value(String),
+    Value(String, bool),
     Map {
         content: HashMap<String, Translation>,
         order: Vec<String>,
@@ -13,9 +13,9 @@ pub(crate) enum Translation {
 }
 
 impl Translation {
-    pub fn containsKey(&self, key: &[&String]) -> bool {
+    pub fn contains_key(&self, key: &[&String]) -> bool {
         match self {
-            Self::Value(_) => key.is_empty(),
+            Self::Value(_, _) => key.is_empty(),
             Self::Map { content, .. } => {
                 let Some(&first) = key.first() else {
                     return false;
@@ -23,18 +23,56 @@ impl Translation {
                 let Some(entry) = content.get(first) else {
                     return false;
                 };
-                entry.containsKey(&key[1..])
+                entry.contains_key(&key[1..])
             }
         }
     }
-    pub fn getKeys(&self) -> Vec<VecDeque<&String>> {
+    pub fn visit_translation(&mut self, other: &Translation) -> Result<(), String> {
+        for key in other.get_keys() {
+            let key = key.into_iter().collect::<Vec<_>>();
+            let key = key.as_slice();
+            if self.visit_key(key).is_err() {
+                let key = key
+                    .into_iter()
+                    .map(|&s| s.clone())
+                    .collect::<Vec<String>>()
+                    .join(".");
+                return Err(key);
+            }
+        }
+        Ok(())
+    }
+    pub fn visit_key(&mut self, key: &[&String]) -> Result<(), ()> {
         match self {
-            Self::Value(_) => vec![vec![].into()],
+            Self::Value(_, visited) => {
+                *visited = true;
+                Ok(())
+            }
+            Self::Map { content, .. } => {
+                let Some(&first) = key.first() else {
+                    return Err(());
+                };
+                let Some(entry) = content.get_mut(first) else {
+                    return Err(());
+                };
+                entry.visit_key(&key[1..])
+            }
+        }
+    }
+    pub fn everything_visited(&self) -> bool {
+        match self {
+            Self::Value(_, visited) => *visited,
+            Self::Map { content, .. } => content.values().all(Self::everything_visited),
+        }
+    }
+    pub fn get_keys(&self) -> Vec<VecDeque<&String>> {
+        match self {
+            Self::Value(_, _) => vec![vec![].into()],
             Self::Map { content, .. } => content
                 .iter()
                 .flat_map(move |(key, value)| {
                     value
-                        .getKeys()
+                        .get_keys()
                         .into_iter()
                         .map(|mut arr| {
                             arr.push_front(key);
@@ -45,6 +83,13 @@ impl Translation {
                 .collect::<Vec<_>>(),
         }
     }
+}
+
+fn to_slice(a: Vec<VecDeque<&String>>) -> Vec<Vec<&String>> {
+    a.into_iter()
+        .map(VecDeque::into_iter)
+        .map(vec_deque::IntoIter::<&String>::collect)
+        .collect()
 }
 
 mod de;
@@ -77,13 +122,13 @@ fn test_deserialization() {
 
     assert_eq!(translation, expected);
 
-    assert!(translation.containsKey(&[&"a".to_string(), &"a".to_string()]));
-    assert!(translation.containsKey(&[&"a".to_string(), &"b".to_string()]));
-    assert!(translation.containsKey(&[&"b".to_string()]));
-    assert!(translation.containsKey(&[&"c".to_string()]));
+    assert!(translation.contains_key(&[&"a".to_string(), &"a".to_string()]));
+    assert!(translation.contains_key(&[&"a".to_string(), &"b".to_string()]));
+    assert!(translation.contains_key(&[&"b".to_string()]));
+    assert!(translation.contains_key(&[&"c".to_string()]));
 
     let translation_keys: Vec<Vec<&String>> = translation
-        .getKeys()
+        .get_keys()
         .into_iter()
         .map(VecDeque::into_iter)
         .map(vec_deque::IntoIter::<&String>::collect)
@@ -91,6 +136,6 @@ fn test_deserialization() {
 
     assert_eq!(translation_keys.len(), 4);
     for key in translation_keys.iter().map(Vec::as_slice) {
-        assert!(translation.containsKey(key), "{key:?}");
+        assert!(translation.contains_key(key), "{key:?}");
     }
 }
