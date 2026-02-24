@@ -32,6 +32,18 @@ pub enum Options {
         #[arg(long, short, default_value_t = false)]
         recursive: bool,
     },
+    /// Sorts the keys in source based on the order used in base
+    #[command(alias = "s")]
+    Sort {
+        /// This file will be used as base template for every source file
+        base: PathBuf,
+        /// This can be a file or directory. It will be checked against the base
+        source: PathBuf,
+        /// Wether to explore the specified source directory recursivly or not
+        /// This has no effect when source is a file
+        #[arg(long, short, default_value_t = false)]
+        recursive: bool,
+    },
     /// This will find all differences between base and source
     #[command(alias = "d")]
     Diff {
@@ -72,9 +84,15 @@ fn main() {
             source,
             recursive,
         } => verify_templates::verify_templates(base, source, recursive),
+        Options::Sort {
+            base,
+            source,
+            recursive,
+        } => sort::sort(base, source, recursive),
     }
 }
 mod diff;
+mod sort;
 mod utility;
 mod verify;
 mod verify_templates;
