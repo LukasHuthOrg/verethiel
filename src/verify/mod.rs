@@ -1,11 +1,10 @@
 use std::path::PathBuf;
 
-use crate::utility::Translation;
+use crate::utility::{Translation, open_file};
 
 pub(crate) fn verify(base_file: PathBuf, source: PathBuf, recursive: bool, strict: bool) {
-    let Ok(base) = open_file(base_file) else {
-        return;
-    };
+    let base = open_file(base_file).unwrap();
+
     if source.is_dir() {
         validate_directory(source, &base, recursive, strict)
     } else if source.is_file() {
@@ -60,25 +59,6 @@ fn validate_file(path: PathBuf, base: &Translation, strict: bool) -> Result<(), 
         }
     }
     Ok(())
-}
-fn open_file(path: PathBuf) -> Result<Translation, String> {
-    if !path.is_file() {
-        return Err(format!("'{path}' is not a file.", path = path.display()));
-    }
-    let Ok(file_content) = std::fs::read_to_string(&path) else {
-        return Err(format!(
-            "Failed to open file '{base}'",
-            base = path.display()
-        ));
-    };
-    let Ok(result): Result<Translation, serde_json::Error> = serde_json::from_str(&file_content)
-    else {
-        return Err(format!(
-            "Failed to parse file '{path}'",
-            path = path.display()
-        ));
-    };
-    Ok(result)
 }
 
 #[cfg(test)]

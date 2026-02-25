@@ -2,7 +2,7 @@ use serde::{Serialize, ser::SerializeMap};
 
 use serde::ser::Error as _;
 
-use crate::utility::Translation;
+use super::Translation;
 
 impl Serialize for Translation {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

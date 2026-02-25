@@ -5,7 +5,7 @@ use serde::{
     de::{Error as _, Visitor},
 };
 
-use crate::utility::Translation;
+use super::Translation;
 
 impl<'de> Deserialize<'de> for Translation {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
