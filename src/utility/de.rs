@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use serde::{de::Visitor, Deserialize};
+use serde::{
+    Deserialize,
+    de::{Error as _, Visitor},
+};
 
 use crate::utility::Translation;
 
@@ -39,7 +42,9 @@ impl<'de> Visitor<'de> for TranslationVisitor {
 
         while let Some((key, value)) = map.next_entry::<String, Translation>()? {
             order.push(key.clone());
-            content.insert(key, value);
+            if content.insert(key.clone(), value).is_some() {
+                return Err(A::Error::custom(format!("Found duplicate key: '{key}'")));
+            }
         }
         Ok(Translation::Map { content, order })
     }

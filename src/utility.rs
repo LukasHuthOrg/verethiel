@@ -1,4 +1,4 @@
-use std::collections::{vec_deque, HashMap, VecDeque};
+use std::collections::{HashMap, VecDeque, vec_deque};
 
 use serde::Serialize;
 
@@ -65,6 +65,73 @@ impl Translation {
             Self::Map { content, .. } => content.values().all(Self::everything_visited),
         }
     }
+    pub fn visit_ordered_translation<const CANCEL_ON_MISS: bool>(
+        &mut self,
+        other: &Translation,
+    ) -> Result<(), String> {
+        for key in other.get_ordered_keys() {
+            let key = key.into_iter().collect::<Vec<_>>();
+            let key = key.as_slice();
+            if self.visit_ordered_key::<CANCEL_ON_MISS>(key).is_err() {
+                let key = key
+                    .into_iter()
+                    .map(|&(s, _)| s.clone())
+                    .collect::<Vec<String>>()
+                    .join(".");
+                return Err(key);
+            }
+        }
+        Ok(())
+    }
+    pub fn visit_ordered_key<const CANCEL_ON_MISS: bool>(
+        &mut self,
+        key: &[(&String, usize)],
+    ) -> Result<(), ()> {
+        match self {
+            Self::Value(_, visited) => {
+                *visited = true;
+                Ok(())
+            }
+            Self::Map { content, order } => {
+                let Some(&(first, position)) = key.first() else {
+                    return Err(());
+                };
+                let is_at_expected_position = order.get(position).is_some_and(|v| v == first);
+                if !is_at_expected_position {
+                    return if CANCEL_ON_MISS { Err(()) } else { Ok(()) };
+                }
+                let Some(entry) = content.get_mut(first) else {
+                    return Err(());
+                };
+                entry.visit_ordered_key::<CANCEL_ON_MISS>(&key[1..])
+            }
+        }
+    }
+    pub fn get_ordered_keys(&self) -> Vec<VecDeque<(&String, usize)>> {
+        match self {
+            Self::Value(_, _) => vec![vec![].into()],
+            Self::Map { content, order } => content
+                .iter()
+                .flat_map(move |(key, value)| {
+                    let position = order
+                        .iter()
+                        .enumerate()
+                        .filter(|&(_, e)| e == key)
+                        .map(|(i, _)| i)
+                        .next()
+                        .expect("There should always be an entry in ordered");
+                    value
+                        .get_ordered_keys()
+                        .into_iter()
+                        .map(|mut arr| {
+                            arr.push_front((key, position));
+                            arr
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>(),
+        }
+    }
     pub fn get_keys(&self) -> Vec<VecDeque<&String>> {
         match self {
             Self::Value(_, _) => vec![vec![].into()],
@@ -83,13 +150,6 @@ impl Translation {
                 .collect::<Vec<_>>(),
         }
     }
-}
-
-fn to_slice(a: Vec<VecDeque<&String>>) -> Vec<Vec<&String>> {
-    a.into_iter()
-        .map(VecDeque::into_iter)
-        .map(vec_deque::IntoIter::<&String>::collect)
-        .collect()
 }
 
 mod de;
@@ -148,4 +208,32 @@ fn test_get_keys() {
     for key in translation_keys.iter().map(Vec::as_slice) {
         assert!(translation.contains_key(key), "{key:?}");
     }
+}
+#[test]
+fn test_get_ordered_keys() {
+    const INPUT: &str = r#"{"c": "c", "a": {"a": "a", "b": "b"}, "b": "b"}"#;
+    let translation: Translation = serde_json::from_str(INPUT).unwrap();
+
+    let ordered_keys: Vec<Vec<(&String, usize)>> = translation
+        .get_ordered_keys()
+        .into_iter()
+        .map(VecDeque::into_iter)
+        .map(vec_deque::IntoIter::collect)
+        .collect();
+    assert!(ordered_keys.contains(&vec![(&"c".to_string(), 0)]));
+    assert!(ordered_keys.contains(&vec![(&"a".to_string(), 1), (&"a".to_string(), 0)]));
+    assert!(ordered_keys.contains(&vec![(&"a".to_string(), 1), (&"b".to_string(), 1)]));
+    assert!(ordered_keys.contains(&vec![(&"b".to_string(), 2)]));
+}
+#[test]
+#[should_panic]
+fn test_panic_on_invalid_comma() {
+    const INPUT: &str = r#"{"c": "c", "a": {"a": "a", "b": "b",}, "b": "b"}"#;
+    let _: Translation = serde_json::from_str(INPUT).unwrap();
+}
+#[test]
+#[should_panic]
+fn test_panic_on_duplicate_key() {
+    const INPUT: &str = r#"{"c": "c", "a": {"a": "a", "b": "b", "a": "?"}, "b": "b"}"#;
+    let _: Translation = serde_json::from_str(INPUT).unwrap();
 }

@@ -19,6 +19,9 @@ pub enum Options {
         /// This has no effect when source is a file
         #[arg(long, short, default_value_t = false)]
         recursive: bool,
+        /// When this flag is set, the order is also considered while validating
+        #[arg(long, short, default_value_t = false)]
+        strict: bool,
     },
     /// Checks whether the used templates in the source file/directory align with the base file
     #[command(alias = "vt")]
@@ -78,7 +81,8 @@ fn main() {
             base,
             source,
             recursive,
-        } => verify::verify(base, source, recursive),
+            strict,
+        } => verify::verify(base, source, recursive, strict),
         Options::VerifyTemplates {
             base,
             source,
