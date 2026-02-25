@@ -116,3 +116,41 @@ fn test_panic_on_duplicate_key() {
     let _: Translation = serde_json::from_str(INPUT).unwrap();
 }
 
+#[test]
+fn test_order_applyance() {
+    const INPUT_A: &str = r#"{"a":"","b":""}"#;
+    const INPUT_B: &str = r#"{"b":"b","a":"a"}"#;
+    const EXPECTED: &str = r#"{"a":"a","b":"b"}"#;
+    let t1: Translation = serde_json::from_str(INPUT_A).unwrap();
+    let mut t2: Translation = serde_json::from_str(INPUT_B).unwrap();
+    t2.apply_translation_order(&t1).unwrap();
+    let result = serde_json::to_string(&t2).unwrap();
+    assert_eq!(result, EXPECTED);
+}
+#[test]
+#[should_panic(expected = "self and other diverged, self being value, other map")]
+fn test_order_applyance_divergence_other() {
+    const INPUT_A: &str = r#"{"a":"","b":{"b":""}}"#;
+    const INPUT_B: &str = r#"{"b":"b","a":"a"}"#;
+    let t1: Translation = serde_json::from_str(INPUT_A).unwrap();
+    let mut t2: Translation = serde_json::from_str(INPUT_B).unwrap();
+    t2.apply_translation_order(&t1).unwrap();
+}
+#[test]
+#[should_panic(expected = "self and other diverged, self being map, other value")]
+fn test_order_applyance_divergence_self() {
+    const INPUT_A: &str = r#"{"a":"","b":""}"#;
+    const INPUT_B: &str = r#"{"b":{"b":"b"},"a":"a"}"#;
+    let t1: Translation = serde_json::from_str(INPUT_A).unwrap();
+    let mut t2: Translation = serde_json::from_str(INPUT_B).unwrap();
+    t2.apply_translation_order(&t1).unwrap();
+}
+#[test]
+#[should_panic(expected = "not found in other but self")]
+fn test_order_applyance_divergence_key() {
+    const INPUT_A: &str = r#"{"a":"","b":""}"#;
+    const INPUT_B: &str = r#"{"c":"c","a":"a"}"#;
+    let t1: Translation = serde_json::from_str(INPUT_A).unwrap();
+    let mut t2: Translation = serde_json::from_str(INPUT_B).unwrap();
+    t2.apply_translation_order(&t1).unwrap();
+}

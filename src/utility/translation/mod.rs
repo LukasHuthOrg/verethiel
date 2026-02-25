@@ -31,6 +31,36 @@ impl Translation {
             }
         }
     }
+    pub fn apply_translation_order(&mut self, other: &Translation) -> Result<(), String> {
+        if matches!(
+            (&self, other),
+            (Translation::Value(_, _), Translation::Value(_, _))
+        ) {
+            return Ok(());
+        }
+        let Translation::Map {
+            order: current_order,
+            content,
+        } = self
+        else {
+            return Err("self and other diverged, self being value, other map".to_string());
+        };
+        let Translation::Map {
+            order: intended_order,
+            content: intended_content,
+        } = other
+        else {
+            return Err("self and other diverged, self being map, other value".to_string());
+        };
+        *current_order = intended_order.clone();
+        for (key, value) in content {
+            let intended = intended_content
+                .get(key)
+                .ok_or(format!("'{key}' not found in other but self"))?;
+            value.apply_translation_order(intended)?;
+        }
+        Ok(())
+    }
     pub fn visit_translation(&mut self, other: &Translation) -> Result<(), String> {
         for key in other.get_keys() {
             let key = key.into_iter().collect::<Vec<_>>();
@@ -155,4 +185,9 @@ impl Translation {
         }
     }
 }
-
+impl ToString for Translation {
+    fn to_string(&self) -> String {
+        serde_json::to_string(self)
+            .expect("A Translation should always be able to be converted to json")
+    }
+}

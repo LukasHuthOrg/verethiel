@@ -46,6 +46,9 @@ pub enum Options {
         /// This has no effect when source is a file
         #[arg(long, short, default_value_t = false)]
         recursive: bool,
+        /// When supplied, the output will be written to this file instead of stdout.
+        #[arg(long, short)]
+        output: Option<PathBuf>,
     },
     /// This will find all differences between base and source
     #[command(alias = "d")]
@@ -92,7 +95,8 @@ fn main() {
             base,
             source,
             recursive,
-        } => sort::sort(base, source, recursive),
+            output
+        } => sort::sort(base, source, recursive, output),
     }
 }
 mod diff;
