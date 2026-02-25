@@ -256,13 +256,13 @@ fn test_get_ordered_keys() {
     assert!(ordered_keys.contains(&vec![(&"b".to_string(), 2)]));
 }
 #[test]
-#[should_panic]
+#[should_panic(expected = "trailing comma")]
 fn test_panic_on_invalid_comma() {
     const INPUT: &str = r#"{"c": "c", "a": {"a": "a", "b": "b",}, "b": "b"}"#;
     let _: Translation = serde_json::from_str(INPUT).unwrap();
 }
 #[test]
-#[should_panic]
+#[should_panic(expected = "duplicate key")]
 fn test_panic_on_duplicate_key() {
     const INPUT: &str = r#"{"c": "c", "a": {"a": "a", "b": "b", "a": "?"}, "b": "b"}"#;
     let _: Translation = serde_json::from_str(INPUT).unwrap();
