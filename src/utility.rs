@@ -2,8 +2,7 @@ use std::collections::{HashMap, VecDeque, vec_deque};
 
 use serde::Serialize;
 
-#[derive(Serialize, PartialEq, Debug, Clone)]
-#[serde(untagged)]
+#[derive(PartialEq, Debug, Clone)]
 pub(crate) enum Translation {
     Value(String, bool),
     Map {
@@ -153,6 +152,7 @@ impl Translation {
 }
 
 mod de;
+mod ser;
 
 #[test]
 fn test_deserialization() {
@@ -182,6 +182,36 @@ fn test_deserialization() {
 
     assert_eq!(translation, expected);
 }
+
+#[test]
+fn test_serialization() {
+    let value = Translation::Map {
+        content: vec![
+            (
+                "a".to_string(),
+                Translation::Map {
+                    content: vec![
+                        ("a".to_string(), Translation::Value("a".to_string(), false)),
+                        ("b".to_string(), Translation::Value("b".to_string(), false)),
+                    ]
+                    .into_iter()
+                    .collect(),
+                    order: vec!["a".to_string(), "b".to_string()],
+                },
+            ),
+            ("b".to_string(), Translation::Value("b".to_string(), false)),
+            ("c".to_string(), Translation::Value("c".to_string(), false)),
+        ]
+        .into_iter()
+        .collect(),
+        order: vec!["c".to_string(), "a".to_string(), "b".to_string()],
+    };
+
+    let translation = serde_json::to_string(&value).unwrap();
+    const EXPECTED: &str = r#"{"c":"c","a":{"a":"a","b":"b"},"b":"b"}"#;
+    assert_eq!(translation, EXPECTED);
+}
+
 #[test]
 fn test_contains_key() {
     const INPUT: &str = r#"{"c": "c", "a": {"a": "a", "b": "b"}, "b": "b"}"#;
