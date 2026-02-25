@@ -104,16 +104,16 @@ fn test_deserialization() {
                 "a".to_string(),
                 Translation::Map {
                     content: vec![
-                        ("a".to_string(), Translation::Value("a".to_string())),
-                        ("b".to_string(), Translation::Value("b".to_string())),
+                        ("a".to_string(), Translation::Value("a".to_string(), false)),
+                        ("b".to_string(), Translation::Value("b".to_string(), false)),
                     ]
                     .into_iter()
                     .collect(),
                     order: vec!["a".to_string(), "b".to_string()],
                 },
             ),
-            ("b".to_string(), Translation::Value("b".to_string())),
-            ("c".to_string(), Translation::Value("c".to_string())),
+            ("b".to_string(), Translation::Value("b".to_string(), false)),
+            ("c".to_string(), Translation::Value("c".to_string(), false)),
         ]
         .into_iter()
         .collect(),
@@ -121,11 +121,21 @@ fn test_deserialization() {
     };
 
     assert_eq!(translation, expected);
+}
+#[test]
+fn test_contains_key() {
+    const INPUT: &str = r#"{"c": "c", "a": {"a": "a", "b": "b"}, "b": "b"}"#;
+    let translation: Translation = serde_json::from_str(INPUT).unwrap();
 
     assert!(translation.contains_key(&[&"a".to_string(), &"a".to_string()]));
     assert!(translation.contains_key(&[&"a".to_string(), &"b".to_string()]));
     assert!(translation.contains_key(&[&"b".to_string()]));
     assert!(translation.contains_key(&[&"c".to_string()]));
+}
+#[test]
+fn test_get_keys() {
+    const INPUT: &str = r#"{"c": "c", "a": {"a": "a", "b": "b"}, "b": "b"}"#;
+    let translation: Translation = serde_json::from_str(INPUT).unwrap();
 
     let translation_keys: Vec<Vec<&String>> = translation
         .get_keys()
