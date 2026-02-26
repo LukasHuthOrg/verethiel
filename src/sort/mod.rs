@@ -59,3 +59,6 @@ fn sort_file(
     std::fs::write(output_path, translation.to_string())
         .map_err(|err| format!("Failed to write to file: {err}"))
 }
+
+#[cfg(test)]
+mod tests;

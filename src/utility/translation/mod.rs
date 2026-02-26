@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) enum Translation {
@@ -52,12 +52,15 @@ impl Translation {
         else {
             return Err("self and other diverged, self being map, other value".to_string());
         };
-        *current_order = intended_order.clone();
+        let current_order_keys = current_order.clone().into_iter().collect::<HashSet<_>>();
+        let intended_order_keys = intended_order.clone().into_iter().collect::<HashSet<_>>();
+        let in_both = intended_order.iter().filter(|&key|current_order_keys.contains(key)).cloned();
+        let only_current = current_order.iter().filter(|&key|!intended_order_keys.contains(key)).cloned();
+        *current_order = in_both.chain(only_current).collect();
         for (key, value) in content {
-            let intended = intended_content
-                .get(key)
-                .ok_or(format!("'{key}' not found in other but self"))?;
-            value.apply_translation_order(intended)?;
+            if let Some(intended) = intended_content.get(key) {
+                value.apply_translation_order(intended)?;
+            }
         }
         Ok(())
     }

@@ -146,11 +146,12 @@ fn test_order_applyance_divergence_self() {
     t2.apply_translation_order(&t1).unwrap();
 }
 #[test]
-#[should_panic(expected = "not found in other but self")]
-fn test_order_applyance_divergence_key() {
+fn test_append_unknown_keys_at_the_end_when_ordering() {
     const INPUT_A: &str = r#"{"a":"","b":""}"#;
     const INPUT_B: &str = r#"{"c":"c","a":"a"}"#;
+    const EXPECTED_OUTPUT: &str = r#"{"a":"a","c":"c"}"#;
     let t1: Translation = serde_json::from_str(INPUT_A).unwrap();
     let mut t2: Translation = serde_json::from_str(INPUT_B).unwrap();
     t2.apply_translation_order(&t1).unwrap();
+    assert_eq!(t2.to_string(), EXPECTED_OUTPUT);
 }
