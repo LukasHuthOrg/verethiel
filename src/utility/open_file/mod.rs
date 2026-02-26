@@ -12,16 +12,14 @@ pub fn open_file(path: PathBuf) -> Result<Translation, String> {
             base = path.display()
         ));
     };
-    let Ok(result): Result<Translation, serde_json::Error> = serde_json::from_str(&file_content)
-    else {
-        return Err(format!(
-            "Failed to parse file '{path}'",
+    match serde_json::from_str(&file_content) {
+        Ok(result) => Ok(result),
+        Err(err) => Err(format!(
+            "Failed to parse file '{path}': {err} '{file_content}'",
             path = path.display()
-        ));
-    };
-    Ok(result)
+        )),
+    }
 }
 
 #[cfg(test)]
 mod tests;
-

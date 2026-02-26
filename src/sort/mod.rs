@@ -13,10 +13,12 @@ pub(crate) fn sort(base_path: PathBuf, source: PathBuf, recursive: bool, output:
         }
     }
     let base = open_file(base_path.clone()).unwrap();
-    if let Err(err) = if source.is_dir() {
+    if let Err(err) = if source == base_path {
+        Err("Source and base should not be the same".to_string())
+    } else if source.is_dir() {
         sort_directory(source, &base, output, recursive, &base_path)
     } else if source.is_file() {
-        sort_file(source, &base, output, &base_path)
+        sort_file(source, &base, output)
     } else {
         Err("source is neither and existing file nor an existing directory".to_string())
     } {
@@ -40,21 +42,14 @@ fn sort_directory(
         let new_output = output.clone().map(|path| path.join(entry.path()));
         if recursive && entry.path().is_dir() {
             sort_directory(entry.path(), base, new_output, recursive, base_path)?;
-        } else if entry.path().is_file() {
-            sort_file(entry.path(), base, new_output, base_path)?;
+        } else if entry.path().is_file() && base_path != &entry.path() {
+            println!("'{}' '{}'", base_path.display(), entry.path().display());
+            sort_file(entry.path(), base, new_output)?;
         }
     }
     Ok(())
 }
-fn sort_file(
-    path: PathBuf,
-    base: &Translation,
-    output: Option<PathBuf>,
-    base_path: &PathBuf,
-) -> Result<(), String> {
-    if &path == base_path {
-        return Ok(());
-    }
+fn sort_file(path: PathBuf, base: &Translation, output: Option<PathBuf>) -> Result<(), String> {
     let output_path = output.unwrap_or_else(|| path.clone());
     let mut translation = open_file(path)?;
     translation.apply_translation_order(base)?;
