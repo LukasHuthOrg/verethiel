@@ -1,18 +1,20 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, process::exit};
 
 use crate::utility::{Translation, open_file};
 
 pub(crate) fn verify(base_file: PathBuf, source: PathBuf, recursive: bool, strict: bool) {
     let base = open_file(base_file).unwrap();
 
-    if source.is_dir() {
+    if let Err(err) = if source.is_dir() {
         validate_directory(source, &base, recursive, strict)
     } else if source.is_file() {
         validate_file(source, &base, strict)
     } else {
         Ok(())
+    } {
+        eprintln!("Failed to veify files: {err}");
+        exit(1);
     }
-    .expect("Failed to verify files")
 }
 fn validate_directory(
     path: PathBuf,

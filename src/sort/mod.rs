@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, process::exit};
 
 use crate::utility::{Translation, open_file};
 
@@ -13,14 +13,16 @@ pub(crate) fn sort(base_path: PathBuf, source: PathBuf, recursive: bool, output:
         }
     }
     let base = open_file(base_path.clone()).unwrap();
-    if source.is_dir() {
+    if let Err(err) = if source.is_dir() {
         sort_directory(source, &base, output, recursive, &base_path)
     } else if source.is_file() {
         sort_file(source, &base, output, &base_path)
     } else {
-        panic!("source is neither and existing file nor an existing directory")
+        Err("source is neither and existing file nor an existing directory".to_string())
+    } {
+        eprintln!("{err}");
+        exit(1);
     }
-    .unwrap()
 }
 fn sort_directory(
     path: PathBuf,
