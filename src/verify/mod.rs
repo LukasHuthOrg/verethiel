@@ -3,7 +3,7 @@ use std::{path::PathBuf, process::exit};
 use crate::utility::{Translation, open_file};
 
 pub(crate) fn verify(base_file: PathBuf, source: PathBuf, recursive: bool, strict: bool) {
-    let base = open_file(base_file).unwrap();
+    let base = open_file(&base_file).unwrap();
 
     if let Err(err) = if source.is_dir() {
         validate_directory(source, &base, recursive, strict)
@@ -41,8 +41,8 @@ fn validate_directory(
     }
     Ok(())
 }
-fn validate_file(path: PathBuf, base: &Translation, strict: bool) -> Result<(), String> {
-    let mut translation = open_file(path.clone())?;
+pub(crate) fn validate_file(path: PathBuf, base: &Translation, strict: bool) -> Result<(), String> {
+    let mut translation = open_file(&path)?;
     let visit_fn = if strict {
         Translation::visit_ordered_translation::<true>
     } else {

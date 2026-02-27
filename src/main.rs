@@ -49,6 +49,10 @@ pub enum Options {
         /// When supplied, the output will be written to this file instead of stdout.
         #[arg(long, short)]
         output: Option<PathBuf>,
+        /// When this flag is set, the order will only be applied if both source and base have the
+        /// exact same keys.
+        #[arg(long, short, default_value_t = false)]
+        strict: bool,
     },
     /// This will find all differences between base and source
     #[command(alias = "d")]
@@ -95,8 +99,9 @@ fn main() {
             base,
             source,
             recursive,
-            output
-        } => sort::sort(base, source, recursive, output),
+            output,
+            strict
+        } => sort::sort(base, source, recursive, output, strict),
     }
 }
 mod diff;

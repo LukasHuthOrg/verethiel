@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use tempfile::{NamedTempFile, TempDir};
 
 use crate::utility::Translation;
@@ -30,6 +28,7 @@ fn test_correct_order_file_file_none() {
         t1.path().to_path_buf(),
         false,
         None,
+        false,
     );
     let result = String::from_utf8(std::fs::read(t1.path()).unwrap()).unwrap();
     assert_eq!(result, FILE_CONTENT_0);
@@ -38,7 +37,7 @@ fn test_correct_order_file_file_none() {
 fn test_sort_file() {
     let (_, t1) = setup_correct();
     let base: Translation = serde_json::from_str(FILE_CONTENT_0).unwrap();
-    sort_file(t1.path().to_path_buf(), &base, None).unwrap();
+    sort_file(t1.path().to_path_buf(), &base, None, false).unwrap();
     let result = String::from_utf8(std::fs::read(t1.path()).unwrap()).unwrap();
     assert_eq!(result, FILE_CONTENT_0);
 }
@@ -57,10 +56,26 @@ fn test_sort_directory() {
         None,
         false,
         &t2.path().to_path_buf(),
+        false,
     )
     .unwrap();
     let result0 = String::from_utf8(std::fs::read(t0.path()).unwrap()).unwrap();
     let result1 = String::from_utf8(std::fs::read(t1.path()).unwrap()).unwrap();
     assert_eq!(result0, FILE_CONTENT_0);
     assert_eq!(result1, FILE_CONTENT_0);
+}
+#[test]
+#[should_panic(expected = "Failed to open directory")]
+fn test_sort_directory_file_as_dir() {
+    let base: Translation = serde_json::from_str(FILE_CONTENT_0).unwrap();
+    let t = NamedTempFile::new().unwrap();
+    sort_directory(
+        t.path().to_path_buf(),
+        &base,
+        None,
+        false,
+        &t.path().to_path_buf(),
+        false,
+    )
+    .unwrap();
 }

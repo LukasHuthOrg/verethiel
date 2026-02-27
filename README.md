@@ -25,9 +25,9 @@ popd
 
 ## Road map
 
-- [ ] Verify
-    - [ ] Implement
-    - [ ] Adjust README
+- [x] Verify
+    - [x] Implement
+    - [x] Adjust README
 - [ ] Verify templates
     - [ ] Implement
     - [ ] Adjust README
@@ -37,7 +37,71 @@ popd
     - [ ] Insert empty Translation when key exists in base but not source
         - [ ] Output summary to output when defined and fix is on
     - [ ] Adjust README
-- [ ] sort
-    - [ ] Order by base ordering (order is already attached to the Translation)
-    - [ ] Adjust README
+- [x] sort
+    - [x] Order by base ordering (order is already attached to the Translation)
+    - [x] Adjust README
 - [ ] Add usage examples
+- [ ] Toggle Stream/Transaction
+- [ ] Add `verethiel.toml` support for feature flags
+
+## Usage
+
+### Verify
+
+This command verifies, whether the keys of the source file/s match the keys of the base file.
+It flags missing keys and unknown keys.
+
+#### Command
+
+```sh
+verethiel verify [OPTIONS] <BASE FILE> <SOURCE>
+```
+or
+```sh
+verethiel v [OPTIONS] <BASE FILE> <SOURCE>
+```
+
+#### Arguments
+- *BASE FILE*: This file will be used as template what structure the other files should satisfy.
+- *SOURCE*: This will be compared against the base. This can be a file or a directory.
+
+#### Options
+- *recursive*: This can be toggled when the specified source is a directory to check every subdirectory as well.
+    - Usage: `--recursive` or `-r`
+- *strict*: In strict mode the order of the keys is also being validated.
+    - Usage: `--strict` or `-s`
+
+### Sort
+
+This command uses the structure of the base and sorts the keys in based like they are in the base.
+Keys which are not in the base are appended below the known keys.
+
+#### Command
+
+```sh
+verethiel sort [OPTIONS] <BASE FILE> <SOURCE>
+```
+or
+```sh
+verethiel s [OPTIONS] <BASE FILE> <SOURCE>
+```
+
+#### Arguments
+- *BASE FILE*: This file will be used as template what structure the other files should satisfy.
+- *SOURCE*: This will be sorted according to the structure of the base. This can be a file or a directory.
+
+#### Options
+- *recursive*: This can be toggled when the specified source is a directory to check every subdirectory as well.
+    - Usage: `--recursive` or `-r`
+- *strict*: In strict the sort will fail when encountering missing or unknown keys
+    - Usage: `--strict` or `-s`
+
+## Supported Formats
+
+Currently supported:
+- JSON files
+- `{{key}}` placeholder templating
+
+Planned (via feature-flag):
+- Additional template styles
+- Other structured formats
