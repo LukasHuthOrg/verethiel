@@ -13,12 +13,19 @@ pub(crate) fn sort(
         let both_dir = source.is_dir() && output.is_dir();
         let both_file = source.is_file() && output.is_file();
         if !both_file && !both_dir {
-            panic!(
+            eprintln!(
                 "When using output, output and source must either be a directory or file, they can't be different"
             );
+            exit(2);
         }
     }
-    let base = open_file(&base_path).unwrap();
+    let base = match open_file(&base_path) {
+        Ok(base) => base,
+        Err(err) => {
+            eprintln!("{err}");
+            exit(1);
+        }
+    };
     if let Err(err) = if source == base_path {
         Err("Source and base should not be the same".to_string())
     } else if source.is_dir() {
