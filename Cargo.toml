@@ -8,6 +8,7 @@ license = "MIT"
 repository = "https://github.com/LukasHuthOrg/verethiel"
 homepage = "https://github.com/LukasHuthOrg/verethiel"
 keywords = ["cli", "json", "whatever-it-does"]
+description = "CLI tool to verify, sort and diff i18n JSON files against a base template"
 
 [dependencies]
 clap = { version = "4.5.60", features = ["derive"] }
