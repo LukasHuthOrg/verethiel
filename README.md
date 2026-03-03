@@ -32,7 +32,7 @@ popd
     - [ ] Implement
     - [ ] Adjust README
 - [ ] diff
-    - [ ] Find all differences
+    - [x] Find all differences
     - [ ] Delete keys not available in base
     - [ ] Insert empty Translation when key exists in base but not source
         - [ ] Output summary to output when defined and fix is on
