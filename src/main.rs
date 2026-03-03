@@ -100,7 +100,7 @@ fn main() {
             source,
             recursive,
             output,
-            strict
+            strict,
         } => sort::sort(base, source, recursive, output, strict),
     }
 }

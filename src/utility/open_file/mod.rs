@@ -6,7 +6,7 @@ pub fn open_file(path: &Path) -> Result<Translation, String> {
     if !path.is_file() {
         return Err(format!("'{path}' is not a file.", path = path.display()));
     }
-    let Ok(file_content) = std::fs::read_to_string(&path) else {
+    let Ok(file_content) = std::fs::read_to_string(path) else {
         return Err(format!(
             "Failed to open file '{base}'",
             base = path.display()

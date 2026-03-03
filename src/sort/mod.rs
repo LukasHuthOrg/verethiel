@@ -1,6 +1,6 @@
 use std::{path::PathBuf, process::exit};
 
-use crate::utility::{Translation, open_file};
+use crate::utility::{open_file, Translation};
 
 pub(crate) fn sort(
     base_path: PathBuf,

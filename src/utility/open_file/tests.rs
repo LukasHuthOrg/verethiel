@@ -30,4 +30,3 @@ fn test_panic_on_invalid_json() {
     tf.as_file().write_all("<invalid json>".as_bytes()).unwrap();
     _ = open_file(&tf.path().to_path_buf()).unwrap();
 }
-

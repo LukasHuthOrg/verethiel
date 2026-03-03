@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use serde::{
-    Deserialize,
     de::{Error as _, Visitor},
+    Deserialize,
 };
 
 use super::Translation;

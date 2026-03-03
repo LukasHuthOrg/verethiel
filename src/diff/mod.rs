@@ -50,6 +50,7 @@ fn print_result(diffresults: DiffResults, output: Option<PathBuf>) {
             .read(false)
             .write(true)
             .create(true)
+            .truncate(true)
             .open(output)
             .expect("file could not be opened or created");
         file.write_fmt(format_args!("{diffresults}"))
@@ -86,7 +87,7 @@ fn diff_directory(
             path.display()
         ));
     }
-    let Ok(read_dir) = std::fs::read_dir(&path) else {
+    let Ok(read_dir) = std::fs::read_dir(path) else {
         return DiffResults::new_err(format!("Failed to open directory '{}'", path.display()));
     };
     read_dir
@@ -121,7 +122,7 @@ fn process_entry(
     let path = entry.path();
     if recursive && path.is_dir() {
         diff_directory(&path, base, recursive, fix, base_path, base_keys, depth + 1)
-    } else if path.is_file() && base_path != &path {
+    } else if path.is_file() && base_path != path {
         DiffResults::new(diff_file(&path, base, base_keys, fix))
     } else {
         DiffResults::default()
@@ -177,7 +178,7 @@ impl Display for DiffResults {
                 Ok(diff) => f.write_fmt(format_args!("{}", DiffWithBase::new(diff, &base_keys)))?,
                 Err(err) => f.write_fmt(format_args!("An error occured: {err}\n"))?,
             }
-            if self.diffs.len() - 1 >= i {
+            if self.diffs.len() > i {
                 f.write_char('\n')?;
             }
         }
@@ -248,7 +249,7 @@ fn diff_file(
         }
         extra.push(i);
     }
-    for (i, key) in base_keys.into_iter().enumerate() {
+    for (i, key) in base_keys.iter().enumerate() {
         if translation.contains_key(key) {
             continue;
         }

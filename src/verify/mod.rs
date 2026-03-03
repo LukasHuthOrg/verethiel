@@ -1,6 +1,6 @@
 use std::{path::PathBuf, process::exit};
 
-use crate::utility::{Translation, open_file};
+use crate::utility::{open_file, Translation};
 
 pub(crate) fn verify(base_file: PathBuf, source: PathBuf, recursive: bool, strict: bool) {
     let base = open_file(&base_file).unwrap();
@@ -33,7 +33,7 @@ fn validate_directory(
             continue;
         };
         let entry_path = entry.path();
-        if entry_path.is_dir() {
+        if entry_path.is_dir() && recursive {
             validate_directory(entry_path, base, recursive, strict)?;
         } else if entry_path.is_file() {
             validate_file(entry_path, base, strict)?;

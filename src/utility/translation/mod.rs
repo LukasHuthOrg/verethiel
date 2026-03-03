@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    fmt::Display,
+};
 
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) enum Translation {
@@ -168,7 +171,7 @@ impl Translation {
                 .collect::<Vec<_>>(),
         }
     }
-    fn get_position(order: &Vec<String>, key: &String) -> usize {
+    fn get_position(order: &[String], key: &String) -> usize {
         order
             .iter()
             .enumerate()
@@ -195,10 +198,12 @@ impl Translation {
             .collect::<Vec<_>>()
     }
 }
-impl ToString for Translation {
-    fn to_string(&self) -> String {
-        serde_json::to_string(self)
-            .expect("A Translation should always be able to be converted to json")
+impl Display for Translation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(
+            &serde_json::to_string(self)
+                .expect("A Translation should always be able to be converted to json"),
+        )
     }
 }
 pub trait IntoKey<'a> {
@@ -214,16 +219,18 @@ pub trait KeyToString {
 }
 impl KeyToString for &[&String] {
     fn to_string(self) -> String {
-        self.into_iter()
-            .map(|&s| s.clone())
+        self.iter()
+            .cloned()
+            .cloned()
             .collect::<Vec<String>>()
             .join(".")
     }
 }
 impl KeyToString for &[(&String, usize)] {
     fn to_string(self) -> String {
-        self.into_iter()
-            .map(|&(s, _)| s.clone())
+        self.iter()
+            .cloned()
+            .map(|(s, _)| s.clone())
             .collect::<Vec<String>>()
             .join(".")
     }

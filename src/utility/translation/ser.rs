@@ -1,4 +1,4 @@
-use serde::{Serialize, ser::SerializeMap};
+use serde::{ser::SerializeMap, Serialize};
 
 use serde::ser::Error as _;
 
@@ -10,7 +10,7 @@ impl Serialize for Translation {
         S: serde::Serializer,
     {
         match self {
-            Self::Value(value, _) => serializer.serialize_str(&value),
+            Self::Value(value, _) => serializer.serialize_str(value),
             Self::Map { content, order } => {
                 let mut map = serializer.serialize_map(Some(order.len()))?;
                 for key in order {
