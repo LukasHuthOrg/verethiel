@@ -1,8 +1,8 @@
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::utility::Translation;
 
-pub fn open_file(path: &PathBuf) -> Result<Translation, String> {
+pub fn open_file(path: &Path) -> Result<Translation, String> {
     if !path.is_file() {
         return Err(format!("'{path}' is not a file.", path = path.display()));
     }

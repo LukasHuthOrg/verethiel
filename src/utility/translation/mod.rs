@@ -155,13 +155,7 @@ impl Translation {
             Self::Map { content, order } => content
                 .iter()
                 .flat_map(move |(key, value)| {
-                    let position = order
-                        .iter()
-                        .enumerate()
-                        .filter(|&(_, e)| e == key)
-                        .map(|(i, _)| i)
-                        .next()
-                        .expect("There should always be an entry in ordered");
+                    let position = Self::get_position(order, key);
                     value
                         .get_ordered_keys()
                         .into_iter()
@@ -174,29 +168,45 @@ impl Translation {
                 .collect::<Vec<_>>(),
         }
     }
+    fn get_position(order: &Vec<String>, key: &String) -> usize {
+        order
+            .iter()
+            .enumerate()
+            .filter(|&(_, e)| e == key)
+            .map(|(i, _)| i)
+            .next()
+            .expect("There should always be an entry in ordered")
+    }
     pub fn get_keys(&self) -> Vec<VecDeque<&String>> {
         match self {
             Self::Value(_, _) => vec![vec![].into()],
-            Self::Map { content, .. } => content
-                .iter()
-                .flat_map(move |(key, value)| {
-                    value
-                        .get_keys()
-                        .into_iter()
-                        .map(|mut arr| {
-                            arr.push_front(key);
-                            arr
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>(),
+            Self::Map { content, .. } => content.iter().flat_map(Self::get_keys_int).collect(),
         }
+    }
+    fn get_keys_int<'a>(input: (&'a String, &'a Translation)) -> Vec<VecDeque<&'a String>> {
+        let (key, value) = input;
+        value
+            .get_keys()
+            .into_iter()
+            .map(|mut arr| {
+                arr.push_front(key);
+                arr
+            })
+            .collect::<Vec<_>>()
     }
 }
 impl ToString for Translation {
     fn to_string(&self) -> String {
         serde_json::to_string(self)
             .expect("A Translation should always be able to be converted to json")
+    }
+}
+pub trait IntoKey<'a> {
+    fn to_key(self) -> Vec<&'a String>;
+}
+impl<'a> IntoKey<'a> for VecDeque<&'a String> {
+    fn to_key(self) -> Vec<&'a String> {
+        self.into_iter().collect::<Vec<_>>()
     }
 }
 pub trait KeyToString {
@@ -216,5 +226,22 @@ impl KeyToString for &[(&String, usize)] {
             .map(|&(s, _)| s.clone())
             .collect::<Vec<String>>()
             .join(".")
+    }
+}
+impl KeyToString for VecDeque<&String> {
+    fn to_string(self) -> String {
+        self.into_iter().cloned().collect::<Vec<_>>().join(".")
+    }
+}
+pub trait ToKeyArray<'a> {
+    fn keys(self) -> Vec<Vec<&'a String>>;
+}
+impl<'a, A, I> ToKeyArray<'a> for A
+where
+    A: IntoIterator<Item = I>,
+    I: IntoKey<'a>,
+{
+    fn keys(self) -> Vec<Vec<&'a String>> {
+        self.into_iter().map(I::to_key).collect()
     }
 }

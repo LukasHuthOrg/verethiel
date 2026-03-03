@@ -1,13 +1,20 @@
 use std::{
-    collections::{VecDeque, vec_deque},
-    fmt::Display,
+    collections::{vec_deque, VecDeque},
+    fmt::{Display, Write},
     fs::DirEntry,
     io::Write as _,
     path::{Path, PathBuf},
     process::exit,
 };
 
-use crate::utility::{KeyToString as _, Translation, open_file};
+use crate::utility::{
+    open_file,
+    translation::{KeyToString as _, ToKeyArray},
+    ToSliceArr, Translation,
+};
+
+#[cfg(test)]
+mod tests;
 
 pub(crate) fn diff(
     base_path: PathBuf,
@@ -16,6 +23,9 @@ pub(crate) fn diff(
     fix: bool,
     output: Option<PathBuf>,
 ) {
+    if fix {
+        unimplemented!("The fix flag is currently not implemented");
+    }
     let base = match open_file(&base_path) {
         Ok(base) => base,
         Err(err) => {
@@ -23,11 +33,14 @@ pub(crate) fn diff(
             exit(1);
         }
     };
+    let base_keys = base.get_keys().keys();
+    let base_keys = base_keys.to_slice();
     if source.is_dir() {
-        let result = diff_directory(&source, &base, recursive, fix, &base_path, 0);
+        let result =
+            diff_directory(&source, &base, recursive, fix, &base_path, &base_keys, 0).base(base);
         print_result(result, output);
     } else if source.is_file() {
-        let result = DiffResults::new(diff_file(&source, &base, fix));
+        let result = DiffResults::new(diff_file(&source, &base, &base_keys, fix)).base(base);
         print_result(result, output);
     }
 }
@@ -54,7 +67,7 @@ struct Diff {
     missing: Vec<usize>,
     /// Index into keys
     extra: Vec<usize>,
-    // placeholder_missmatch: Vec<PlaceholderDiff<'a>>
+    // placeholder_mismatch: Vec<PlaceholderDiff<'a>>
     translation: Translation,
     file_path: PathBuf,
 }
@@ -64,6 +77,7 @@ fn diff_directory(
     recursive: bool,
     fix: bool,
     base_path: &Path,
+    base_keys: &Vec<&[&String]>,
     depth: usize,
 ) -> DiffResults {
     if depth >= MAX_DEPTH {
@@ -76,7 +90,9 @@ fn diff_directory(
         return DiffResults::new_err(format!("Failed to open directory '{}'", path.display()));
     };
     read_dir
-        .map(|entry| process_entry_with_errors(entry, recursive, base_path, fix, base, depth))
+        .map(|entry| {
+            process_entry_with_errors(entry, recursive, base_path, fix, base, base_keys, depth)
+        })
         .collect()
 }
 fn process_entry_with_errors(
@@ -85,10 +101,11 @@ fn process_entry_with_errors(
     base_path: &Path,
     fix: bool,
     base: &Translation,
+    base_keys: &Vec<&[&String]>,
     depth: usize,
 ) -> DiffResults {
     match maybe_entry {
-        Ok(entry) => process_entry(entry, recursive, base_path, fix, base, depth),
+        Ok(entry) => process_entry(entry, recursive, base_path, fix, base, base_keys, depth),
         Err(err) => DiffResults::new_err(format!("Failed to read dir entry: {err}")),
     }
 }
@@ -98,13 +115,14 @@ fn process_entry(
     base_path: &Path,
     fix: bool,
     base: &Translation,
+    base_keys: &Vec<&[&String]>,
     depth: usize,
 ) -> DiffResults {
     let path = entry.path();
     if recursive && path.is_dir() {
-        diff_directory(&path, base, recursive, fix, base_path, depth + 1)
+        diff_directory(&path, base, recursive, fix, base_path, base_keys, depth + 1)
     } else if path.is_file() && base_path != &path {
-        DiffResults::new(diff_file(&path, base, fix))
+        DiffResults::new(diff_file(&path, base, base_keys, fix))
     } else {
         DiffResults::default()
     }
@@ -156,14 +174,11 @@ impl Display for DiffResults {
         let base_keys = base_keys.iter().map(Vec::as_slice).collect::<Vec<_>>();
         for (i, diff) in self.diffs.iter().enumerate() {
             match diff {
-                Ok(diff) => f.write_fmt(format_args!(
-                    "{}\n",
-                    DiffWithBase::new(diff, base, &base_keys)
-                ))?,
+                Ok(diff) => f.write_fmt(format_args!("{}", DiffWithBase::new(diff, &base_keys)))?,
                 Err(err) => f.write_fmt(format_args!("An error occured: {err}\n"))?,
             }
-            if self.diffs.len() - 1 > i {
-                f.write_str("\n\n")?;
+            if self.diffs.len() - 1 >= i {
+                f.write_char('\n')?;
             }
         }
         Ok(())
@@ -171,20 +186,11 @@ impl Display for DiffResults {
 }
 struct DiffWithBase<'a> {
     diff: &'a Diff,
-    base: &'a Translation,
     base_keys: &'a Vec<&'a [&'a String]>,
 }
 impl<'a> DiffWithBase<'a> {
-    pub fn new(
-        diff: &'a Diff,
-        base: &'a Translation,
-        base_keys: &'a Vec<&'a [&'a String]>,
-    ) -> Self {
-        Self {
-            diff,
-            base,
-            base_keys,
-        }
+    pub fn new(diff: &'a Diff, base_keys: &'a Vec<&'a [&'a String]>) -> Self {
+        Self { diff, base_keys }
     }
 }
 impl<'a> Display for DiffWithBase<'a> {
@@ -192,7 +198,7 @@ impl<'a> Display for DiffWithBase<'a> {
         let path = &self.diff.file_path;
         f.write_fmt(format_args!("Diff for {}\n", path.display()))?;
         if self.diff.missing.is_empty() && self.diff.extra.is_empty() {
-            return Ok(());
+            return f.write_str("nothing.\n");
         }
         if !self.diff.missing.is_empty() {
             f.write_str("missing keys:\n")?;
@@ -214,7 +220,7 @@ impl<'a> Display for DiffWithBase<'a> {
                 .collect();
             let keys = keys.iter().map(Vec::as_slice).collect::<Vec<_>>();
             f.write_str("extra keys:\n")?;
-            for &missing in self.diff.missing.iter() {
+            for &missing in self.diff.extra.iter() {
                 let key = keys
                     .get(missing)
                     .expect("Any used index should be in the key list")
@@ -225,6 +231,33 @@ impl<'a> Display for DiffWithBase<'a> {
         Ok(())
     }
 }
-fn diff_file(path: &Path, base: &Translation, fix: bool) -> DiffResult {
-    todo!()
+fn diff_file(
+    path: &Path,
+    base: &Translation,
+    base_keys: &Vec<&[&String]>,
+    _fix: bool,
+) -> DiffResult {
+    let mut extra = Vec::new();
+    let mut missing = Vec::new();
+    let translation = open_file(path)?;
+    let keys = translation.get_keys().keys();
+    let keys = keys.to_slice();
+    for (i, key) in keys.into_iter().enumerate() {
+        if base.contains_key(key) {
+            continue;
+        }
+        extra.push(i);
+    }
+    for (i, key) in base_keys.into_iter().enumerate() {
+        if translation.contains_key(key) {
+            continue;
+        }
+        missing.push(i);
+    }
+    Ok(Diff {
+        missing,
+        extra,
+        translation,
+        file_path: path.to_path_buf(),
+    })
 }
