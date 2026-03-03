@@ -30,6 +30,12 @@ fn test_deserialization() {
 
     assert_eq!(translation, expected);
 }
+#[test]
+#[should_panic(expected = "string or map")]
+fn test_deserialization_unknown_struct() {
+    const INPUT: &str = r#"{"c": "c", "a": {"a": "a", "b": "b"}, "b": "b", "d": ["a", "b"]}"#;
+    let _: Translation = serde_json::from_str(INPUT).unwrap();
+}
 
 #[test]
 fn test_serialization() {
@@ -59,12 +65,40 @@ fn test_serialization() {
     const EXPECTED: &str = r#"{"c":"c","a":{"a":"a","b":"b"},"b":"b"}"#;
     assert_eq!(translation, EXPECTED);
 }
+#[test]
+#[should_panic(expected = "Everything in order should be in content aswell")]
+fn test_serialization_faulty_stucture() {
+    let value = Translation::Map {
+        content: vec![
+            (
+                "a".to_string(),
+                Translation::Map {
+                    content: vec![
+                        ("a".to_string(), Translation::Value("a".to_string(), false)),
+                        ("b".to_string(), Translation::Value("b".to_string(), false)),
+                    ]
+                    .into_iter()
+                    .collect(),
+                    order: vec!["a".to_string(), "b".to_string()],
+                },
+            ),
+            ("c".to_string(), Translation::Value("c".to_string(), false)),
+        ]
+        .into_iter()
+        .collect(),
+        order: vec!["c".to_string(), "a".to_string(), "b".to_string()],
+    };
+
+    _ = serde_json::to_string(&value).unwrap();
+}
+
 
 #[test]
 fn test_contains_key() {
     const INPUT: &str = r#"{"c": "c", "a": {"a": "a", "b": "b"}, "b": "b"}"#;
     let translation: Translation = serde_json::from_str(INPUT).unwrap();
 
+    assert!(!translation.contains_key(&[&"a".to_string()]));
     assert!(translation.contains_key(&[&"a".to_string(), &"a".to_string()]));
     assert!(translation.contains_key(&[&"a".to_string(), &"b".to_string()]));
     assert!(translation.contains_key(&[&"b".to_string()]));
@@ -154,4 +188,10 @@ fn test_append_unknown_keys_at_the_end_when_ordering() {
     let mut t2: Translation = serde_json::from_str(INPUT_B).unwrap();
     t2.apply_translation_order(&t1).unwrap();
     assert_eq!(t2.to_string(), EXPECTED_OUTPUT);
+}
+
+#[test]
+#[should_panic(expected = "This should never be called, since Vec::default() does Vec::new(), but needs T::default")]
+fn test_failing_translation_default() {
+    let _: Translation = Translation::default();
 }
