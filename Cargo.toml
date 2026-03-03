@@ -1,11 +1,13 @@
 [package]
 name = "verethiel"
-version = "1.0.0"
+version = "0.1.0"
 edition = "2024"
 authors = ["Lukas Huth"]
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/LukasHuthOrg/verethiel"
+homepage = "https://github.com/LukasHuthOrg/verethiel"
+keywords = ["cli", "json", "whatever-it-does"]
 
 [dependencies]
 clap = { version = "4.5.60", features = ["derive"] }
