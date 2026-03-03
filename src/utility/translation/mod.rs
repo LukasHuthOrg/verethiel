@@ -8,6 +8,13 @@ pub(crate) enum Translation {
         order: Vec<String>,
     },
 }
+impl Default for Translation {
+    fn default() -> Self {
+        panic!(
+            "This should never be called, since Vec::default() does Vec::new(), but needs T::default"
+        )
+    }
+}
 
 mod de;
 mod ser;
@@ -54,8 +61,14 @@ impl Translation {
         };
         let current_order_keys = current_order.clone().into_iter().collect::<HashSet<_>>();
         let intended_order_keys = intended_order.clone().into_iter().collect::<HashSet<_>>();
-        let in_both = intended_order.iter().filter(|&key|current_order_keys.contains(key)).cloned();
-        let only_current = current_order.iter().filter(|&key|!intended_order_keys.contains(key)).cloned();
+        let in_both = intended_order
+            .iter()
+            .filter(|&key| current_order_keys.contains(key))
+            .cloned();
+        let only_current = current_order
+            .iter()
+            .filter(|&key| !intended_order_keys.contains(key))
+            .cloned();
         *current_order = in_both.chain(only_current).collect();
         for (key, value) in content {
             if let Some(intended) = intended_content.get(key) {
@@ -69,11 +82,7 @@ impl Translation {
             let key = key.into_iter().collect::<Vec<_>>();
             let key = key.as_slice();
             if self.visit_key(key).is_err() {
-                let key = key
-                    .into_iter()
-                    .map(|&s| s.clone())
-                    .collect::<Vec<String>>()
-                    .join(".");
+                let key = key.to_string();
                 return Err(key);
             }
         }
@@ -110,11 +119,7 @@ impl Translation {
             let key = key.into_iter().collect::<Vec<_>>();
             let key = key.as_slice();
             if self.visit_ordered_key::<CANCEL_ON_MISS>(key).is_err() {
-                let key = key
-                    .into_iter()
-                    .map(|&(s, _)| s.clone())
-                    .collect::<Vec<String>>()
-                    .join(".");
+                let key = key.to_string();
                 return Err(key);
             }
         }
@@ -192,5 +197,24 @@ impl ToString for Translation {
     fn to_string(&self) -> String {
         serde_json::to_string(self)
             .expect("A Translation should always be able to be converted to json")
+    }
+}
+pub trait KeyToString {
+    fn to_string(self) -> String;
+}
+impl KeyToString for &[&String] {
+    fn to_string(self) -> String {
+        self.into_iter()
+            .map(|&s| s.clone())
+            .collect::<Vec<String>>()
+            .join(".")
+    }
+}
+impl KeyToString for &[(&String, usize)] {
+    fn to_string(self) -> String {
+        self.into_iter()
+            .map(|&(s, _)| s.clone())
+            .collect::<Vec<String>>()
+            .join(".")
     }
 }

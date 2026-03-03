@@ -1,6 +1,13 @@
-use std::{path::PathBuf, process::exit};
+use std::{
+    collections::{VecDeque, vec_deque},
+    fmt::Display,
+    fs::DirEntry,
+    io::Write as _,
+    path::{Path, PathBuf},
+    process::exit,
+};
 
-use crate::utility::{Translation, open_file};
+use crate::utility::{KeyToString as _, Translation, open_file};
 
 pub(crate) fn diff(
     base_path: PathBuf,
@@ -16,7 +23,32 @@ pub(crate) fn diff(
             exit(1);
         }
     };
+    if source.is_dir() {
+        let result = diff_directory(&source, &base, recursive, fix, &base_path, 0);
+        print_result(result, output);
+    } else if source.is_file() {
+        let result = DiffResults::new(diff_file(&source, &base, fix));
+        print_result(result, output);
+    }
 }
+fn print_result(diffresults: DiffResults, output: Option<PathBuf>) {
+    if let Some(output) = output {
+        let mut file = std::fs::OpenOptions::new()
+            .read(false)
+            .write(true)
+            .create(true)
+            .open(output)
+            .expect("file could not be opened or created");
+        file.write_fmt(format_args!("{diffresults}"))
+            .expect("Failed to write to file");
+    } else {
+        std::io::stdout()
+            .write_fmt(format_args!("{diffresults}"))
+            .expect("Failed to write to stdout");
+    }
+}
+const MAX_DEPTH: usize = 10;
+#[derive(Debug, Default)]
 struct Diff {
     /// Index into keys
     missing: Vec<usize>,
@@ -27,51 +59,172 @@ struct Diff {
     file_path: PathBuf,
 }
 fn diff_directory(
-    path: &PathBuf,
+    path: &Path,
     base: &Translation,
     recursive: bool,
     fix: bool,
-    base_path: &PathBuf,
-) -> (Vec<Diff>, Vec<String>) {
-    let _: (Vec<Diff>, Vec<String>) = std::fs::read_dir(&path)
-        .map_err(|_| format!("Failed to open directory '{}'", path.display()))?
-        .filter_map(Result::ok)
-        .map(|entry| {
-            if recursive && entry.path().is_dir() {
-                diff_directory(&entry.path(), base, recursive, fix, base_path)
-            } else if entry.path().is_file() && base_path != &entry.path() {
-                diff_file(&entry.path(), base, fix)
-                    .map(|v| (v, Vec::new()))
-                    .unwrap_or_else(|e| (Vec::new(), vec![e]))
-            } else {
-                (Vec::new(), Vec::new())
+    base_path: &Path,
+    depth: usize,
+) -> DiffResults {
+    if depth >= MAX_DEPTH {
+        return DiffResults::new_err(format!(
+            "Recursion too deep, MAX_DEPTH is {MAX_DEPTH} tried with: {}",
+            path.display()
+        ));
+    }
+    let Ok(read_dir) = std::fs::read_dir(&path) else {
+        return DiffResults::new_err(format!("Failed to open directory '{}'", path.display()));
+    };
+    read_dir
+        .map(|entry| process_entry_with_errors(entry, recursive, base_path, fix, base, depth))
+        .collect()
+}
+fn process_entry_with_errors(
+    maybe_entry: Result<DirEntry, std::io::Error>,
+    recursive: bool,
+    base_path: &Path,
+    fix: bool,
+    base: &Translation,
+    depth: usize,
+) -> DiffResults {
+    match maybe_entry {
+        Ok(entry) => process_entry(entry, recursive, base_path, fix, base, depth),
+        Err(err) => DiffResults::new_err(format!("Failed to read dir entry: {err}")),
+    }
+}
+fn process_entry(
+    entry: DirEntry,
+    recursive: bool,
+    base_path: &Path,
+    fix: bool,
+    base: &Translation,
+    depth: usize,
+) -> DiffResults {
+    let path = entry.path();
+    if recursive && path.is_dir() {
+        diff_directory(&path, base, recursive, fix, base_path, depth + 1)
+    } else if path.is_file() && base_path != &path {
+        DiffResults::new(diff_file(&path, base, fix))
+    } else {
+        DiffResults::default()
+    }
+}
+type DiffResult = Result<Diff, String>;
+#[derive(Debug, Default)]
+struct DiffResults {
+    diffs: Vec<DiffResult>,
+    base: Option<Translation>,
+}
+impl DiffResults {
+    pub fn new(value: DiffResult) -> Self {
+        Self {
+            diffs: vec![value],
+            base: None,
+        }
+    }
+    pub fn new_err(err: String) -> Self {
+        Self {
+            diffs: vec![Err(err)],
+            base: None,
+        }
+    }
+    pub fn base(mut self, base: Translation) -> Self {
+        self.base = Some(base);
+        self
+    }
+}
+impl FromIterator<DiffResults> for DiffResults {
+    fn from_iter<T: IntoIterator<Item = DiffResults>>(iter: T) -> Self {
+        Self {
+            diffs: iter.into_iter().flat_map(|d| d.diffs).collect(),
+            base: None,
+        }
+    }
+}
+impl Display for DiffResults {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let base = self
+            .base
+            .as_ref()
+            .expect("There should always be a base attached when printing");
+        let base_keys = base.get_keys();
+        let base_keys: Vec<Vec<&String>> = base_keys
+            .into_iter()
+            .map(VecDeque::into_iter)
+            .map(vec_deque::IntoIter::collect)
+            .collect();
+        let base_keys = base_keys.iter().map(Vec::as_slice).collect::<Vec<_>>();
+        for (i, diff) in self.diffs.iter().enumerate() {
+            match diff {
+                Ok(diff) => f.write_fmt(format_args!(
+                    "{}\n",
+                    DiffWithBase::new(diff, base, &base_keys)
+                ))?,
+                Err(err) => f.write_fmt(format_args!("An error occured: {err}\n"))?,
             }
-        })
-        .fold((Vec::new(), Vec::new()), agg_res_and_errs);
-    todo!()
-
-    // for entry in std::fs::read_dir(&path)
-    //     .map_err(|_| format!("Failed to open directory '{}'", path.display()))?
-    // {
-    //     let Ok(entry) = entry else {
-    //         continue;
-    //     };
-    //     let new_output = output.clone().map(|path| path.join(entry.path()));
-    //     if recursive && entry.path().is_dir() {
-    //         sort_directory(entry.path(), base, new_output, recursive, base_path, strict)?;
-    //     } else if entry.path().is_file() && base_path != &entry.path() {
-    //         println!("'{}' '{}'", base_path.display(), entry.path().display());
-    //         sort_file(entry.path(), base, new_output, strict)?;
-    //     }
-    // }
-    // Ok(())
+            if self.diffs.len() - 1 > i {
+                f.write_str("\n\n")?;
+            }
+        }
+        Ok(())
+    }
 }
-type Aggregate = (Vec<Diff>, Vec<String>);
-fn agg_res_and_errs(mut agg: Aggregate, mut value: Aggregate) -> Aggregate {
-    agg.0.append(&mut value.0);
-    agg.1.append(&mut value.1);
-    agg
+struct DiffWithBase<'a> {
+    diff: &'a Diff,
+    base: &'a Translation,
+    base_keys: &'a Vec<&'a [&'a String]>,
 }
-fn diff_file(path: &PathBuf, base: &Translation, fix: bool) -> Result<Vec<Diff>, String> {
+impl<'a> DiffWithBase<'a> {
+    pub fn new(
+        diff: &'a Diff,
+        base: &'a Translation,
+        base_keys: &'a Vec<&'a [&'a String]>,
+    ) -> Self {
+        Self {
+            diff,
+            base,
+            base_keys,
+        }
+    }
+}
+impl<'a> Display for DiffWithBase<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let path = &self.diff.file_path;
+        f.write_fmt(format_args!("Diff for {}\n", path.display()))?;
+        if self.diff.missing.is_empty() && self.diff.extra.is_empty() {
+            return Ok(());
+        }
+        if !self.diff.missing.is_empty() {
+            f.write_str("missing keys:\n")?;
+            for &missing in self.diff.missing.iter() {
+                let key = self
+                    .base_keys
+                    .get(missing)
+                    .expect("Any used index should be in the key list")
+                    .to_string();
+                f.write_fmt(format_args!("Missing key: {key}\n"))?;
+            }
+        }
+        if !self.diff.extra.is_empty() {
+            let keys = self.diff.translation.get_keys();
+            let keys: Vec<Vec<&String>> = keys
+                .into_iter()
+                .map(VecDeque::into_iter)
+                .map(vec_deque::IntoIter::collect)
+                .collect();
+            let keys = keys.iter().map(Vec::as_slice).collect::<Vec<_>>();
+            f.write_str("extra keys:\n")?;
+            for &missing in self.diff.missing.iter() {
+                let key = keys
+                    .get(missing)
+                    .expect("Any used index should be in the key list")
+                    .to_string();
+                f.write_fmt(format_args!("Extra key: {key}\n"))?;
+            }
+        }
+        Ok(())
+    }
+}
+fn diff_file(path: &Path, base: &Translation, fix: bool) -> DiffResult {
     todo!()
 }
