@@ -1,13 +1,13 @@
 [package]
 name = "verethiel"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 authors = ["Lukas Huth"]
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/LukasHuthOrg/verethiel"
 homepage = "https://github.com/LukasHuthOrg/verethiel"
-keywords = ["cli", "json", "whatever-it-does"]
+keywords = ["cli", "json"]
 description = "CLI tool to verify, sort and diff i18n JSON files against a base template"
 
 [dependencies]

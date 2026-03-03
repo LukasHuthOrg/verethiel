@@ -96,6 +96,31 @@ verethiel s [OPTIONS] <BASE FILE> <SOURCE>
 - *strict*: In strict the sort will fail when encountering missing or unknown keys
     - Usage: `--strict` or `-s`
 
+### Diff
+
+This command uses the stucture of the base and compares it against every source.
+It will then output what keys are missing and extra.
+
+#### Command
+
+```sh
+verethiel diff [OPTIONS] <BASE FILE> <SOURCE>
+```
+or
+```sh
+verethiel d [OPTIONS] <BASE FILE> <SOURCE>
+```
+
+#### Arguments
+- *BASE FILE*: This file will be used as template what keys the other files should have.
+- *SOURCE*: This will be diffed against the base. It can be a file or a directory
+
+#### Options
+- *recursive*: This can be toggled when the source is a directory to check every subdirectory as well.
+    - Usage: `--recursive` or `-r`
+- *output*: With this you can specify an output file to not print the result to stdout.
+    - Usage: `--output` or `-o`
+
 ## Supported Formats
 
 Currently supported:
